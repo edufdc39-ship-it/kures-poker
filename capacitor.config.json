@@ -1,0 +1,14 @@
+{
+  "appId": "com.kures.poker",
+  "appName": "Kures Poker",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#08301f"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "style": "DARK"
+    }
+  }
+}

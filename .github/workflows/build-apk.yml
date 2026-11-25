@@ -1,0 +1,64 @@
+name: Compilar APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Versión
+        id: ver
+        run: |
+          echo "name=1.0.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          echo "code=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Poner la versión en la app
+        run: sed -i "s/__VERSION__/${{ steps.ver.outputs.name }}/" www/index.html
+
+      - name: Copiar la app web al proyecto Android
+        run: npx cap sync android
+
+      - name: Compilar APK firmado
+        working-directory: android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          APP_VERSION_NAME: ${{ steps.ver.outputs.name }}
+          APP_VERSION_CODE: ${{ steps.ver.outputs.code }}
+        run: |
+          if [ -z "$KEYSTORE_PASSWORD" ]; then echo "::error::Falta el secreto KEYSTORE_PASSWORD (Settings > Secrets and variables > Actions)"; exit 1; fi
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk ../KuresPoker.apk
+
+      - name: Publicar versión
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.name }}
+          name: Kures Poker ${{ steps.ver.outputs.name }}
+          body: |
+            Descargá **KuresPoker.apk** e instalalo en el celu. Si ya tenés la app, se actualiza encima sin perder los datos.
+          files: KuresPoker.apk
+          make_latest: true
